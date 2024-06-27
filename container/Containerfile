@@ -97,7 +97,7 @@ RUN mkdir -p ${GREENMAIL_HOME}
 COPY --from=builder /home/javauser/greenmail/greenmail-standalone/target/greenmail-standalone-${GREENMAIL_VERSION}.jar ${GREENMAIL_HOME}/greenmail-standalone.jar
 COPY --from=builder /home/javauser/greenmail/greenmail-core/target/classes/greenmail.p12 ${GREENMAIL_HOME}/greenmail.p12
 
-COPY run_greenmail.sh /home/greenmail/run_greenmail.sh
+COPY files/run_greenmail.sh /home/greenmail/run_greenmail.sh
 RUN chmod +x /home/greenmail/run_greenmail.sh
 
 USER 1001

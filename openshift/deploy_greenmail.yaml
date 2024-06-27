@@ -25,7 +25,7 @@ spec:
       containers:
         - name: greenmail
           image: >-
-            quay.io/avoigtma/greenmailtest:latest
+            image-registry.openshift-image-registry.svc:5000/greenmail/greenmail:latest
           ports:
             - containerPort: 3025
               protocol: TCP

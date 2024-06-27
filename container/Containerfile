@@ -40,7 +40,7 @@ COPY files/maven-settings-security.xml ${MAVEN_CONFIG}/settings-security.xml
 ENV JAVA_HOME=/usr/lib/jvm/jre-11-openjdk
 ENV JAVA_VERSION=11
 ENV JAVA_VENDOR=openjdk
-ENV JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8
+ENV JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8
 
 RUN mvn --version
 

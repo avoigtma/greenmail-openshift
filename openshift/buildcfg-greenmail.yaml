@@ -1,0 +1,28 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: greenmail-build
+  name: greenmail-build
+  namespace: greenmail
+spec:
+  failedBuildsHistoryLimit: 2
+  successfulBuildsHistoryLimit: 2
+  output:
+    to:
+      kind: ImageStreamTag
+      name: 'greenmail:latest'
+  postCommit: {}
+  resources: {}
+  runPolicy: Serial
+  source:
+    contextDir: container
+    git:
+      uri: 'https://github.com/avoigtma/greenmail-openshift.git'
+  strategy:
+    dockerStrategy:
+      dockerfilePath: Containerfile
+      noCache: true
+    type: Docker
+  triggers:
+    - type: ConfigChange

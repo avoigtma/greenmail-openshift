@@ -1,0 +1,107 @@
+# Builder Container - this is a UBI8 Image "extended" with Maven 3.9.6 and OpenJDK-11
+FROM registry.access.redhat.com/ubi8/ubi as builder
+
+ARG USERID=javauser
+ARG USER_HOME_DIR="/home/${USERID}"
+
+ARG CUSTOM_MAVEN_VERSION=3.9.6
+ARG BASE_URL=https://downloads.apache.org/maven/maven-3/${CUSTOM_MAVEN_VERSION}/binaries
+
+ARG MVN_ARCHIVE=apache-maven-${CUSTOM_MAVEN_VERSION}-bin.tar.gz
+ARG MVN_SHA=706f01b20dec0305a822ab614d51f32b07ee11d0218175e55450242e49d2156386483b506b3a4e8a03ac8611bae96395fd5eec15f50d3013d5deed6d1ee18224
+
+ENV MAVEN_HOME /usr/share/maven-${CUSTOM_MAVEN_VERSION}
+ENV MAVEN_CONFIG "$USER_HOME_DIR/.m2"
+
+USER root
+
+ARG PACKAGES="java-11-openjdk-devel tzdata-java git"
+RUN set -eux; dnf --disablerepo="*" --enablerepo="ubi-8-baseos-rpms" --enablerepo="ubi-8-appstream-rpms" --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y ${PACKAGES} \
+    && dnf upgrade -y \
+    && dnf clean all \
+    && rpm -q ${PACKAGES}
+
+## download target Maven version from Artifactory and unpack
+RUN set -eux; curl -O ${BASE_URL}/${MVN_ARCHIVE} \
+     && sha512sum ${MVN_ARCHIVE} && echo "${MVN_SHA}  apache-maven-${CUSTOM_MAVEN_VERSION}-bin.tar.gz" | sha512sum -c - \
+     && mkdir -p ${MAVEN_HOME} && tar -xzf ${MVN_ARCHIVE} -C ${MAVEN_HOME} --strip-components=1 \
+     && ln -s ${MAVEN_HOME}/bin/mvn /usr/bin/mvn
+
+# create the runtime user
+RUN useradd ${USERID}
+
+# check if maven runs
+USER ${USERID}
+RUN mkdir -p ${MAVEN_CONFIG}
+
+COPY files/maven-settings.xml ${MAVEN_CONFIG}/settings.xml
+COPY files/maven-settings-security.xml ${MAVEN_CONFIG}/settings-security.xml
+
+ENV JAVA_HOME=/usr/lib/jvm/jre-11-openjdk
+ENV JAVA_VERSION=11
+ENV JAVA_VENDOR=openjdk
+ENV JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8
+
+RUN mvn --version
+
+ENV GREENMAIL_REPO=https://github.com/greenmail-mail-test/greenmail
+
+RUN set -eux; cd ${USER_HOME_DIR} \
+    && pwd && ls -al \
+    && git clone ${GREENMAIL_REPO} \
+    && cd greenmail \
+    && pwd && ls -al \
+    && mvn clean install -DskipITs -Pstandalone
+
+USER 1001
+
+
+
+# use openjdk-11-runtime for running Greenmail 
+FROM registry.access.redhat.com/ubi8/openjdk-11-runtime
+
+LABEL org.opencontainers.image.url=https://github.com/avoigtma/greenmail-openshift
+LABEL org.opencontainers.image.source=https://github.com/avoigtma/greenmail-openshift/containers/Containerfile
+
+# this needs to be adjusted to the used version of Greenmail, as used to copy the Jar file created by Maven
+ARG GREENMAIL_VERSION=2.1.0-SNAPSHOT
+
+ENV GREENMAIL_HOME=/home/greenmail
+
+#######################
+# Expose ports:
+# - smtp  : 3025
+# - smtps : 3465
+# - pop3  : 3110
+# - pop3s : 3995
+# - imap  : 3143
+# - imaps : 3993
+# - api   : 8080
+#######################
+EXPOSE 3025 3465 3110 3995 3143 3993 8080
+
+#######################
+# Configuration options
+#######################
+ENV JAVA_OPTS      -Djava.net.preferIPv4Stack=true
+ENV GREENMAIL_OPTS -Dgreenmail.setup.test.all \
+    -Dgreenmail.hostname=0.0.0.0 \
+    -Dgreenmail.tls.keystore.file=/home/greenmail/greenmail.p12 \
+    -Dgreenmail.tls.keystore.password=changeit \
+    -Dgreenmail.verbose \
+    -Dgreenmail.auth.disabled
+
+USER root
+
+RUN mkdir -p ${GREENMAIL_HOME}
+COPY --from=builder /home/javauser/greenmail/greenmail-standalone/target/greenmail-standalone-${GREENMAIL_VERSION}.jar ${GREENMAIL_HOME}/greenmail-standalone.jar
+COPY --from=builder /home/javauser/greenmail/greenmail-core/target/classes/greenmail.p12 ${GREENMAIL_HOME}/greenmail.p12
+
+COPY run_greenmail.sh /home/greenmail/run_greenmail.sh
+RUN chmod +x /home/greenmail/run_greenmail.sh
+
+USER 1001
+WORKDIR /home/greenmail
+
+# Run GreenMail Standalone with test setup and disabled authentication
+ENTRYPOINT ["/bin/sh", "-c", "/home/greenmail/run_greenmail.sh"]

@@ -1,0 +1,50 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: greenmail
+  namespace: greenmail
+  labels:
+    app: greenmail
+    app.kubernetes.io/component: greenmail
+    app.kubernetes.io/instance: greenmail
+    app.kubernetes.io/name: greenmail
+    app.kubernetes.io/part-of: greenmail-app
+spec:
+  ipFamilies:
+    - IPv4
+  ports:
+    - name: smtp
+      protocol: TCP
+      port: 3025
+      targetPort: 3025
+    - name: pop3
+      protocol: TCP
+      port: 3110
+      targetPort: 3110
+    - name: imap
+      protocol: TCP
+      port: 3143
+      targetPort: 3143
+    - name: smtps
+      protocol: TCP
+      port: 3465
+      targetPort: 3465
+    - name: imaps
+      protocol: TCP
+      port: 3993
+      targetPort: 3993
+    - name: pop3d
+      protocol: TCP
+      port: 3995
+      targetPort: 3995
+    - name: api
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  internalTrafficPolicy: Cluster
+  type: ClusterIP
+  ipFamilyPolicy: SingleStack
+  sessionAffinity: None
+  selector:
+    app: greenmail
+    deployment: greenmail

@@ -1,0 +1,9 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: greenmail-config
+data:
+  GREENMAIL_OPTS: >-
+    -Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0
+    -Dgreenmail.tls.keystore.file=/home/greenmail/greenmail.p12
+    -Dgreenmail.tls.keystore.password=changeit -Dgreenmail.auth.disabled 
